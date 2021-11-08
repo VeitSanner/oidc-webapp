@@ -30,7 +30,7 @@ func Start(ctx context.Context, cfg *Config) error {
 	router.LoadHTMLGlob(cfg.TemplateDirGlob)
 
 	store := cookie.NewStore([]byte("secret"))
-	router.Use(sessions.Sessions("mysession", store))
+	router.Use(sessions.SessionsMany([]string{"session", "auth", "id"}, store))
 
 	issuer, _ := url.Parse(cfg.IssuerUrl)
 	callbackUrl, _ := url.Parse(cfg.CallBackUrl)
@@ -56,12 +56,13 @@ func Start(ctx context.Context, cfg *Config) error {
 	protectMiddleware := oidc.Init(ctx, initParams)
 
 	router.GET("/login", protectMiddleware, func(c *gin.Context) {
-		session := sessions.Default(c)
+		auth := sessions.DefaultMany(c, "auth")
 
-		accessToken := session.Get("access_token")
+		accessToken := auth.Get("access_token")
 		log.Printf("%v", accessToken)
 
-		id_token := session.Get("id_token")
+		idSession := sessions.DefaultMany(c, "id")
+		id_token := idSession.Get("id_token")
 
 		c.HTML(http.StatusOK, "login.html", gin.H{
 			"access_token": accessToken,

@@ -76,7 +76,7 @@ func initVerifierAndConfig(ctx context.Context, i InitParams) (*oidc.IDTokenVeri
 
 func logoutHandler(i InitParams) func(c *gin.Context) {
 	return func(c *gin.Context) {
-		serverSession := sessions.Default(c)
+		serverSession := sessions.DefaultMany(c, "session")
 		serverSession.Set("oidcAuthorized", false)
 		serverSession.Set("oidcClaims", nil)
 		serverSession.Set("oidcState", nil)
@@ -92,7 +92,7 @@ func logoutHandler(i InitParams) func(c *gin.Context) {
 func callbackHandler(i InitParams, verifier *oidc.IDTokenVerifier, config *oauth2.Config) func(c *gin.Context) {
 	return func(c *gin.Context) {
 		ctx := c.Request.Context()
-		serverSession := sessions.Default(c)
+		serverSession := sessions.DefaultMany(c, "session")
 
 		state, ok := (serverSession.Get("oidcState")).(string)
 		if handleOk(c, i, ok, "failed to parse state") {
@@ -110,29 +110,16 @@ func callbackHandler(i InitParams, verifier *oidc.IDTokenVerifier, config *oauth
 
 		rawAccessToken := oauth2Token.AccessToken
 		if rawAccessToken != "" {
-			serverSession.Set("access_token", rawAccessToken)
+			authSession := sessions.DefaultMany(c, "auth")
+			authSession.Set("access_token", rawAccessToken)
+			authSession.Save()
 		}
 
-		rawIDToken, ok := oauth2Token.Extra("id_token").(string)
-		if handleOk(c, i, ok, "no id_token field in oauth2 token") {
-			return
-		}
-		serverSession.Set("id_token", rawIDToken)
-
-		idToken, err := verifier.Verify(ctx, rawIDToken)
-		if handleError(c, i, err, "failed to verify id token") {
-			return
-		}
-
-		var claims map[string]interface{}
-		err = idToken.Claims(&claims)
-		if handleError(c, i, err, "failed to parse id token") {
-			return
-		}
-
-		claimsJson, err := json.Marshal(claims)
-		if handleError(c, i, err, "failed to marshal id token: ") {
-			return
+		rawIDToken := oauth2Token.Extra("id_token").(string)
+		if rawIDToken != "" {
+			idSession := sessions.DefaultMany(c, "id")
+			idSession.Set("id_token", rawIDToken)
+			idSession.Save()
 		}
 
 		originalRequestUrl, ok := (serverSession.Get("oidcOriginalRequestUrl")).(string)
@@ -143,7 +130,6 @@ func callbackHandler(i InitParams, verifier *oidc.IDTokenVerifier, config *oauth
 		serverSession.Set("oidcAuthorized", true)
 		serverSession.Set("oidcState", nil)
 		serverSession.Set("oidcOriginalRequestUrl", nil)
-		serverSession.Set("oidcClaims", string(claimsJson))
 
 		err = serverSession.Save()
 		if handleError(c, i, err, "failed save sessions.") {
@@ -166,7 +152,7 @@ func isCallbackUrl(c *gin.Context) bool {
 
 func protectMiddleware(config *oauth2.Config) func(c *gin.Context) {
 	return func(c *gin.Context) {
-		serverSession := sessions.Default(c)
+		serverSession := sessions.DefaultMany(c, "session")
 
 		if isAuthorized(serverSession) || isCallbackUrl(c) {
 			c.Next()
