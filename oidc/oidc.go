@@ -76,16 +76,19 @@ func initVerifierAndConfig(ctx context.Context, i InitParams) (*oidc.IDTokenVeri
 
 func logoutHandler(i InitParams) func(c *gin.Context) {
 	return func(c *gin.Context) {
-		serverSession := sessions.DefaultMany(c, "session")
-		serverSession.Set("oidcAuthorized", false)
-		serverSession.Set("oidcClaims", nil)
-		serverSession.Set("oidcState", nil)
-		serverSession.Set("oidcOriginalRequestUrl", nil)
-		serverSession.Save()
-		logoutUrl := i.Issuer
-		logoutUrl.RawQuery = (url.Values{"redirect_uri": []string{i.PostLogoutUrl.String()}}).Encode()
-		logoutUrl.Path = "protocol/openid-connect/logout"
-		c.Redirect(http.StatusFound, logoutUrl.String())
+		session := sessions.DefaultMany(c, "session")
+		session.Clear()
+		session.Save()
+
+		auth := sessions.DefaultMany(c, "auth")
+		auth.Clear()
+		auth.Save()
+
+		id := sessions.DefaultMany(c, "id")
+		id.Clear()
+		id.Save()
+
+		c.Redirect(http.StatusFound, "/index")
 	}
 }
 
