@@ -2,9 +2,11 @@ package server
 
 import (
 	"context"
+	"html/template"
 	"log"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/VeitSanner/oidc-webapp/oidc"
 	"github.com/gin-gonic/gin"
@@ -27,6 +29,9 @@ type Config struct {
 func Start(ctx context.Context, cfg *Config) error {
 
 	router := gin.Default()
+	router.SetFuncMap(template.FuncMap{
+		"prettyHtml": prettyHtml,
+	})
 	router.LoadHTMLGlob(cfg.TemplateDirGlob)
 
 	store := cookie.NewStore([]byte("secret"))
@@ -68,8 +73,8 @@ func Start(ctx context.Context, cfg *Config) error {
 		log.Printf("%v", atPretty)
 
 		c.HTML(http.StatusOK, "login.html", gin.H{
-			"access_token": atPretty,
-			"id_token":     itPretty,
+			"access_token": template.HTML(atPretty),
+			"id_token":     template.HTML(itPretty),
 		})
 	})
 
@@ -78,4 +83,11 @@ func Start(ctx context.Context, cfg *Config) error {
 	})
 
 	return router.Run(cfg.ListenAddress)
+}
+
+func prettyHtml(t template.HTML) template.HTML {
+	c := string(t)
+	r := strings.ReplaceAll(c, "\n", "<br>")
+	r = strings.ReplaceAll(r, "\t", "&nbsp;&nbsp;&nbsp;&nbsp;")
+	return template.HTML(r)
 }
