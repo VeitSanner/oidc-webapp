@@ -19,6 +19,13 @@ func DecodeJwt(tokenString string, pretty bool) (string, error) {
 		return "", fmt.Errorf("parsing jwt error: %w", err)
 	}
 
+	clientToken := make(map[string]interface{})
+	clientToken["Method"] = token.Method
+	clientToken["Header"] = token.Header
+	clientToken["Claims"] = token.Claims
+	clientToken["Signature"] = token.Signature
+	clientToken["Valid"] = token.Valid
+
 	indentString := ""
 	if pretty {
 		indentString = "\t"
@@ -27,7 +34,7 @@ func DecodeJwt(tokenString string, pretty bool) (string, error) {
 	jsonToken := &strings.Builder{}
 	enc := json.NewEncoder(jsonToken)
 	enc.SetIndent("", indentString)
-	enc.Encode(token)
+	enc.Encode(clientToken)
 
 	return jsonToken.String(), nil
 }
