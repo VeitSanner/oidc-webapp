@@ -1,10 +1,6 @@
 package cmd
 
 import (
-	"fmt"
-	"os"
-	"path/filepath"
-
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
@@ -16,17 +12,11 @@ func createServeCmd() *cobra.Command {
 		Use: "serve",
 		RunE: func(cmd *cobra.Command, args []string) error {
 
-			templateGlob, err := createGlob(viper.GetString("template-dir"))
-			if err != nil {
-				return fmt.Errorf("template-dir. %w", err)
-			}
-
 			serverCfg := &server.Config{
-				ListenAddress:   viper.GetString("listen"),
-				TemplateDirGlob: templateGlob,
-				PostLogoutUrl:   viper.GetString("postlogout-url"),
-				IssuerUrl:       viper.GetString("issuer-url"),
-				CallBackUrl:     viper.GetString("callback-url"),
+				ListenAddress: viper.GetString("listen"),
+				PostLogoutUrl: viper.GetString("postlogout-url"),
+				IssuerUrl:     viper.GetString("issuer-url"),
+				CallBackUrl:   viper.GetString("callback-url"),
 
 				ClientID:     viper.GetString("client-id"),
 				ClientSecret: viper.GetString("client-secret"),
@@ -64,25 +54,4 @@ func createServeCmd() *cobra.Command {
 	viper.BindPFlag("scopes", serveCmd.Flags().Lookup("scopes"))
 
 	return serveCmd
-}
-
-func createGlob(p string) (string, error) {
-	if ok, err := dirExists(p); !ok {
-		return "", err
-	}
-
-	return filepath.Join(p, "*"), nil
-}
-
-func dirExists(p string) (bool, error) {
-	f, err := os.Stat(p)
-
-	if err != nil {
-		return false, err
-	}
-
-	if !f.IsDir() {
-		return false, fmt.Errorf("not a directory '%s'", p)
-	}
-	return true, nil
 }

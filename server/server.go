@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"embed"
 	"html/template"
 	"log"
 	"net/http"
@@ -16,23 +17,26 @@ import (
 )
 
 type Config struct {
-	ListenAddress   string
-	TemplateDirGlob string
-	IssuerUrl       string
-	CallBackUrl     string
-	PostLogoutUrl   string
-	ClientID        string
-	ClientSecret    string
-	Scopes          []string
+	ListenAddress string
+	IssuerUrl     string
+	CallBackUrl   string
+	PostLogoutUrl string
+	ClientID      string
+	ClientSecret  string
+	Scopes        []string
 }
+
+//go:embed templates
+var templates embed.FS
 
 func Start(ctx context.Context, cfg *Config) error {
 
-	router := gin.Default()
-	router.SetFuncMap(template.FuncMap{
+	templ := template.Must(template.New("").Funcs(template.FuncMap{
 		"prettyHtml": prettyHtml,
-	})
-	router.LoadHTMLGlob(cfg.TemplateDirGlob)
+	}).ParseFS(templates, "templates/*"))
+
+	router := gin.Default()
+	router.SetHTMLTemplate(templ)
 
 	store := cookie.NewStore([]byte("secret"))
 	router.Use(sessions.SessionsMany([]string{"session", "auth", "id"}, store))
